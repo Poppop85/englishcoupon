@@ -2,7 +2,7 @@
 
 A browser-based English learning app for children. It currently includes an
 **Alphabet Goal Challenge**, an **Alphabet Ninja** falling-letter game, and an
-**A1 Listening Treasure Hunt** assessment.
+**Royal News Listening Mission** comprehension assessment.
 
 ## Requirements
 
@@ -42,7 +42,7 @@ npm run preview
 - Completion screen after ten correct answers
 - Text fallback when speech synthesis is unavailable
 - Activity 2 with falling letters, spoken targets, scoring, lives, and increasing speed
-- Activity 3 with eight A1 listening questions, replayable audio, and visual answers
+- Activity 3 with eight scaffolded news-listening questions and replayable excerpts
 - Final listening score and a printable-style completion coupon
 
 ## Project structure
@@ -59,8 +59,8 @@ src/
     activity2.js                  Alphabet Ninja game logic
     activity2.css                 Falling letters and game presentation
   activities/activity3/
-    activity3.js                  A1 listening assessment logic and questions
-    activity3.css                 Treasure hunt and coupon presentation
+    activity3.js                  News listening assessment logic and questions
+    activity3.css                 News mission and coupon presentation
 ```
 
 ## Deployment note
