@@ -1,8 +1,14 @@
+import "./activity2.css";
+
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const TARGET_SCORE = 10;
 const STARTING_LIVES = 3;
 
-export function renderAlphabetNinjaGame(container, onExit) {
+export function renderAlphabetNinjaGame(
+  container,
+  onExit,
+  onComplete = onExit,
+) {
   let targetLetter = "";
   let score = 0;
   let lives = STARTING_LIVES;
@@ -212,14 +218,14 @@ export function renderAlphabetNinjaGame(container, onExit) {
           <div class="result-score">${score} / ${TARGET_SCORE}</div>
           <div class="result-actions">
             <button class="app-button app-button-primary" id="ninjaAgainButton" type="button">Play Again</button>
-            <button class="app-button app-button-secondary" id="ninjaFinishButton" type="button">Return Home</button>
+            <button class="app-button app-button-secondary" id="ninjaFinishButton" type="button">${won ? "Start Activity 3" : "Return Home"}</button>
           </div>
         </section>
       </main>
     `;
 
-    container.querySelector("#ninjaAgainButton").addEventListener("click", () => renderAlphabetNinjaGame(container, onExit));
-    container.querySelector("#ninjaFinishButton").addEventListener("click", onExit);
+    container.querySelector("#ninjaAgainButton").addEventListener("click", () => renderAlphabetNinjaGame(container, onExit, onComplete));
+    container.querySelector("#ninjaFinishButton").addEventListener("click", won ? onComplete : onExit);
   }
 
   container.querySelector("#ninjaHomeButton").addEventListener("click", () => {

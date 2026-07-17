@@ -3,6 +3,7 @@ import "./styles/buttons.css";
 
 import { renderAlphabetGoalGame } from "./activities/activity1/activity1.js";
 import { renderAlphabetNinjaGame } from "./activities/activity2/activity2.js";
+import { renderListeningTreasureHunt } from "./activities/activity3/activity3.js";
 
 const app = document.querySelector("#app");
 
@@ -36,6 +37,14 @@ function showStartScreen() {
           >
             Play Activity 2
           </button>
+
+          <button
+            class="app-button app-button-secondary"
+            id="startListeningButton"
+            type="button"
+          >
+            Play Activity 3
+          </button>
         </div>
       </section>
     </main>
@@ -47,14 +56,28 @@ function showStartScreen() {
       renderAlphabetGoalGame(
         app,
         showStartScreen,
-        () => renderAlphabetNinjaGame(app, showStartScreen),
+        () => renderAlphabetNinjaGame(
+          app,
+          showStartScreen,
+          () => renderListeningTreasureHunt(app, showStartScreen),
+        ),
       );
     });
 
   document
     .querySelector("#startNinjaButton")
     .addEventListener("click", () => {
-      renderAlphabetNinjaGame(app, showStartScreen);
+      renderAlphabetNinjaGame(
+        app,
+        showStartScreen,
+        () => renderListeningTreasureHunt(app, showStartScreen),
+      );
+    });
+
+  document
+    .querySelector("#startListeningButton")
+    .addEventListener("click", () => {
+      renderListeningTreasureHunt(app, showStartScreen);
     });
 }
 

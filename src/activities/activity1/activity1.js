@@ -1,3 +1,5 @@
+import "./activity1.css";
+
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const TOTAL_GOALS = 10;
 const DOG_IMAGE_URL = `${import.meta.env.BASE_URL}assets/dog-kicker.png`;
