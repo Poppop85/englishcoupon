@@ -1,12 +1,18 @@
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const TOTAL_GOALS = 10;
+const DOG_IMAGE_URL = `${import.meta.env.BASE_URL}assets/dog-kicker.png`;
 
-export function renderAlphabetGoalGame(container, onExit) {
+export function renderAlphabetGoalGame(
+  container,
+  onExit,
+  onComplete = onExit,
+) {
   let targetLetter = "";
   let currentLetters = [];
   let goalsScored = 0;
   let acceptingAnswer = false;
   let nextRoundTimer = null;
+  let speechTimer = null;
 
   container.innerHTML = `
     <main class="football-game">
@@ -66,6 +72,13 @@ export function renderAlphabetGoalGame(container, onExit) {
         <div class="goals-row" id="goalsRow"></div>
 
         <div class="ball-zone">
+          <img
+            class="dog-kicker"
+            id="dogKicker"
+            src="${DOG_IMAGE_URL}"
+            alt="A friendly dog football player"
+          />
+
           <button
             class="football"
             id="football"
@@ -99,6 +112,7 @@ export function renderAlphabetGoalGame(container, onExit) {
   const listenButton = container.querySelector("#listenButton");
   const homeButton = container.querySelector("#homeButton");
   const goalsRow = container.querySelector("#goalsRow");
+  const dogKicker = container.querySelector("#dogKicker");
   const football = container.querySelector("#football");
   const kickShadow = container.querySelector("#kickShadow");
   const progressFill = container.querySelector("#progressFill");
@@ -106,7 +120,8 @@ export function renderAlphabetGoalGame(container, onExit) {
 
   homeButton.addEventListener("click", () => {
     clearTimeout(nextRoundTimer);
-    window.speechSynthesis.cancel();
+    clearTimeout(speechTimer);
+    window.speechSynthesis?.cancel();
     onExit();
   });
 
@@ -140,6 +155,15 @@ export function renderAlphabetGoalGame(container, onExit) {
   }
 
   function speakInstruction() {
+    if (
+      !("speechSynthesis" in window) ||
+      !("SpeechSynthesisUtterance" in window)
+    ) {
+      feedbackMessage.textContent =
+        `Audio is unavailable. Find the letter ${targetLetter}.`;
+      return;
+    }
+
     window.speechSynthesis.cancel();
 
     const speech = new SpeechSynthesisUtterance(
@@ -202,6 +226,7 @@ export function renderAlphabetGoalGame(container, onExit) {
   }
 
   function resetBall() {
+    dogKicker.className = "dog-kicker";
     football.className = "football";
     football.style.removeProperty("--kick-x");
     football.style.removeProperty("--kick-y");
@@ -241,6 +266,10 @@ export function renderAlphabetGoalGame(container, onExit) {
 
     football.classList.add(
       isCorrect ? "football-kick-correct" : "football-kick-wrong",
+    );
+
+    dogKicker.classList.add(
+      isCorrect ? "dog-kick-correct" : "dog-kick-wrong",
     );
 
     kickShadow.classList.add("kick-shadow-moving");
@@ -359,11 +388,13 @@ export function renderAlphabetGoalGame(container, onExit) {
 
     createGoals();
 
-    setTimeout(speakInstruction, 350);
+    clearTimeout(speechTimer);
+    speechTimer = setTimeout(speakInstruction, 350);
   }
 
   function showResults() {
-    window.speechSynthesis.cancel();
+    clearTimeout(speechTimer);
+    window.speechSynthesis?.cancel();
 
     container.innerHTML = `
       <main class="goal-results-screen">
@@ -427,24 +458,22 @@ export function renderAlphabetGoalGame(container, onExit) {
 
               <h1>Activity 1 Complete</h1>
 
-              <p>
-                The next button will later open Activity 2.
-              </p>
+              <p>Next up: slice the falling letters!</p>
 
               <button
                 class="app-button app-button-primary"
-                id="returnButton"
+                id="continueButton"
                 type="button"
               >
-                Return Home
+                Start Activity 2
               </button>
             </section>
           </main>
         `;
 
         container
-          .querySelector("#returnButton")
-          .addEventListener("click", onExit);
+          .querySelector("#continueButton")
+          .addEventListener("click", onComplete);
       });
   }
 

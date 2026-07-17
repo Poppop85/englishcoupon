@@ -2,6 +2,7 @@ import "./style.css";
 import "./styles/buttons.css";
 
 import { renderAlphabetGoalGame } from "./activities/activity1/activity1.js";
+import { renderAlphabetNinjaGame } from "./activities/activity2/activity2.js";
 
 const app = document.querySelector("#app");
 
@@ -19,13 +20,23 @@ function showStartScreen() {
           Listen to the letter and kick the football into the correct goal!
         </p>
 
-        <button
-          class="app-button app-button-primary"
-          id="startActivityButton"
-          type="button"
-        >
-          Start Game
-        </button>
+        <div class="start-actions">
+          <button
+            class="app-button app-button-primary"
+            id="startActivityButton"
+            type="button"
+          >
+            Start Activity 1
+          </button>
+
+          <button
+            class="app-button app-button-secondary"
+            id="startNinjaButton"
+            type="button"
+          >
+            Play Activity 2
+          </button>
+        </div>
       </section>
     </main>
   `;
@@ -33,7 +44,17 @@ function showStartScreen() {
   document
     .querySelector("#startActivityButton")
     .addEventListener("click", () => {
-      renderAlphabetGoalGame(app, showStartScreen);
+      renderAlphabetGoalGame(
+        app,
+        showStartScreen,
+        () => renderAlphabetNinjaGame(app, showStartScreen),
+      );
+    });
+
+  document
+    .querySelector("#startNinjaButton")
+    .addEventListener("click", () => {
+      renderAlphabetNinjaGame(app, showStartScreen);
     });
 }
 

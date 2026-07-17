@@ -389,6 +389,26 @@
   pointer-events: none;
 }
 
+.dog-kicker {
+  position: absolute;
+  z-index: 2;
+  left: calc(50% - clamp(105px, 23vw, 185px));
+  bottom: 0;
+  width: clamp(105px, 23vw, 185px);
+  height: auto;
+  transform-origin: 80% 75%;
+  filter: drop-shadow(0 9px 6px rgba(17, 45, 37, 0.28));
+  user-select: none;
+}
+
+.dog-kick-correct {
+  animation: dog-kick 760ms cubic-bezier(0.3, 0.82, 0.45, 1);
+}
+
+.dog-kick-wrong {
+  animation: dog-kick-wrong 700ms cubic-bezier(0.3, 0.82, 0.45, 1);
+}
+
 .football {
   position: relative;
   z-index: 3;
@@ -869,5 +889,42 @@
 
   .football-footer p {
     display: none;
+  }
+}
+
+.start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+@keyframes dog-kick {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+
+  35% {
+    transform: translateX(10px) rotate(5deg) scale(1.04);
+  }
+
+  60% {
+    transform: translateX(4px) rotate(-2deg) scale(1.01);
+  }
+}
+
+@keyframes dog-kick-wrong {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  42% {
+    transform: translateX(8px) rotate(4deg);
+  }
+
+  70% {
+    transform: translateX(-2px) rotate(-2deg);
   }
 }
