@@ -158,7 +158,7 @@ const QUESTIONS = [
   },
 ];
 
-export function renderListeningTreasureHunt(container, onExit) {
+export function renderListeningTreasureHunt(container, onExit, onComplete = onExit) {
   let questionIndex = 0;
   let score = 0;
   let acceptingAnswer = true;
@@ -294,7 +294,7 @@ export function renderListeningTreasureHunt(container, onExit) {
       <main class="treasure-results-screen">
         <section class="treasure-results-card">
           <div class="treasure-chest" aria-hidden="true">📰</div>
-          <p class="result-label">All three activities complete</p>
+          <p class="result-label">Activity 3 complete</p>
           <h1>News Mission Complete!</h1>
           <p>${levelMessage}</p>
           <div class="listening-final-score">${score} / ${QUESTIONS.length} <small>${percentage}%</small></div>
@@ -304,14 +304,16 @@ export function renderListeningTreasureHunt(container, onExit) {
             <p>Reward: Choose a fun treat or activity!</p>
           </div>
           <div class="result-actions">
-            <button class="app-button app-button-primary" id="listeningAgainButton" type="button">Replay News Mission</button>
+            <button class="app-button app-button-primary" id="listeningNextButton" type="button">Play Activity 4</button>
+            <button class="app-button app-button-secondary" id="listeningAgainButton" type="button">Replay News Mission</button>
             <button class="app-button app-button-secondary" id="listeningFinishButton" type="button">Return Home</button>
           </div>
         </section>
       </main>
     `;
 
-    container.querySelector("#listeningAgainButton").addEventListener("click", () => renderListeningTreasureHunt(container, onExit));
+    container.querySelector("#listeningNextButton").addEventListener("click", onComplete);
+    container.querySelector("#listeningAgainButton").addEventListener("click", () => renderListeningTreasureHunt(container, onExit, onComplete));
     container.querySelector("#listeningFinishButton").addEventListener("click", onExit);
   }
 

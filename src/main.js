@@ -4,6 +4,7 @@ import "./styles/buttons.css";
 import { renderAlphabetGoalGame } from "./activities/activity1/activity1.js";
 import { renderAlphabetNinjaGame } from "./activities/activity2/activity2.js";
 import { renderListeningTreasureHunt } from "./activities/activity3/activity3.js";
+import { renderLuksongBakaGame } from "./activities/activity4/activity4.js";
 
 const app = document.querySelector("#app");
 
@@ -45,6 +46,14 @@ function showStartScreen() {
           >
             Play Activity 3
           </button>
+
+          <button
+            class="app-button app-button-secondary"
+            id="startBakaButton"
+            type="button"
+          >
+            Play Activity 4
+          </button>
         </div>
       </section>
     </main>
@@ -59,7 +68,11 @@ function showStartScreen() {
         () => renderAlphabetNinjaGame(
           app,
           showStartScreen,
-          () => renderListeningTreasureHunt(app, showStartScreen),
+          () => renderListeningTreasureHunt(
+            app,
+            showStartScreen,
+            () => renderLuksongBakaGame(app, showStartScreen),
+          ),
         ),
       );
     });
@@ -70,14 +83,28 @@ function showStartScreen() {
       renderAlphabetNinjaGame(
         app,
         showStartScreen,
-        () => renderListeningTreasureHunt(app, showStartScreen),
+        () => renderListeningTreasureHunt(
+          app,
+          showStartScreen,
+          () => renderLuksongBakaGame(app, showStartScreen),
+        ),
       );
     });
 
   document
     .querySelector("#startListeningButton")
     .addEventListener("click", () => {
-      renderListeningTreasureHunt(app, showStartScreen);
+      renderListeningTreasureHunt(
+        app,
+        showStartScreen,
+        () => renderLuksongBakaGame(app, showStartScreen),
+      );
+    });
+
+  document
+    .querySelector("#startBakaButton")
+    .addEventListener("click", () => {
+      renderLuksongBakaGame(app, showStartScreen);
     });
 }
 
