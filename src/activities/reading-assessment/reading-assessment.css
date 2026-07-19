@@ -1,0 +1,73 @@
+.reading-assessment-shortcut {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 50;
+  padding: 13px 18px;
+  border-radius: 999px;
+  color: #fff;
+  background: #6447c7;
+  box-shadow: 0 8px 24px rgb(44 27 104 / 28%);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.reading-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 20px 14px 48px;
+  color: #233251;
+  background: linear-gradient(160deg, #f2ebff 0%, #e9f8ff 48%, #fff7db 100%);
+}
+
+.reading-card { width: min(760px, 100%); margin: 0 auto; }
+.reading-header { position: relative; text-align: center; padding: 20px 44px 18px; }
+.reading-header h1 { margin: 4px 0 8px; color: #3d277c; font-size: clamp(1.8rem, 7vw, 2.65rem); }
+.reading-header p { margin: 0 auto; max-width: 560px; line-height: 1.55; }
+.reading-icon { font-size: 3rem; }
+.reading-eyebrow { color: #7255c8; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.reading-back { position: absolute; left: 0; top: 6px; border: 0; background: transparent; color: #563bb0; font-weight: 800; cursor: pointer; }
+
+.passage, .transcript-card, .reading-result {
+  border: 1px solid rgb(92 66 169 / 16%);
+  border-radius: 24px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 14px 40px rgb(56 36 119 / 10%);
+}
+.passage { padding: clamp(20px, 5vw, 34px); }
+.passage h2 { margin: 0 0 16px; color: #4d359a; font-size: 1.45rem; }
+.passage ol { margin: 0; padding-left: 1.55rem; }
+.passage li { padding: 6px 0 6px 5px; font-size: clamp(1rem, 3.6vw, 1.16rem); line-height: 1.52; }
+
+.recording-status { margin: 18px 0 12px; padding: 13px 16px; border-radius: 14px; background: #fff; text-align: center; font-weight: 700; }
+.recording-status.is-recording { color: #a61d38; background: #ffe9ee; animation: reading-pulse 1.4s ease-in-out infinite; }
+.recording-status.has-error { color: #8b2635; background: #ffe5e8; }
+.reading-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.record-button { min-height: 52px; padding: 12px; border: 0; border-radius: 14px; color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 5px 12px rgb(48 29 109 / 16%); }
+.record-button:disabled { opacity: .42; cursor: not-allowed; box-shadow: none; }
+.record-start { background: #6548c7; }
+.record-stop { background: #c43f5b; }
+.record-submit { background: #178466; }
+
+.transcript-card, .reading-result { margin-top: 18px; padding: 22px; }
+.transcript-card h2 { margin: 0 0 8px; font-size: 1rem; color: #6048a5; }
+.transcript-card p { margin: 0; color: #536078; line-height: 1.55; }
+.reading-result { text-align: center; }
+.result-kicker { margin: 0 0 12px; color: #6048a5; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.accuracy-ring { width: 170px; height: 170px; margin: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 12px solid #8f74df; border-radius: 50%; background: #f7f3ff; }
+.accuracy-ring strong { color: #493094; font-size: 2.5rem; }
+.accuracy-ring span { font-size: .78rem; font-weight: 700; }
+.save-status { color: #526079; font-size: .9rem; }
+
+@keyframes reading-pulse { 50% { opacity: .72; } }
+@media (max-width: 580px) {
+  .reading-page { padding-top: 8px; }
+  .reading-header { padding-inline: 32px; }
+  .reading-actions { grid-template-columns: 1fr; }
+  .record-button { width: 100%; }
+  .reading-assessment-shortcut { left: 16px; right: 16px; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-status.is-recording { animation: none; }
+}

@@ -1,12 +1,12 @@
-# English Coupon App
+# Luksong Baka
 
-A browser-based English learning app for children. It currently includes an
-**Alphabet Goal Challenge**, an **Alphabet Ninja** falling-letter game, and an
-**Royal News Listening Mission** comprehension assessment.
+A simple, mobile-friendly jumping game inspired by the traditional Filipino
+game Luksong Baka. The player completes ten successful jumps and receives one
+randomly selected inspirational message on the finishing screen.
 
 ## Requirements
 
-- Node.js 20.19 or newer (Node.js 22.12+ is also supported)
+- Node.js 20.19 or newer
 - npm
 - A modern browser with JavaScript enabled
 
@@ -26,7 +26,7 @@ reloads the page when source files change.
 npm run build
 ```
 
-The production files are written to `dist/`. To preview that build locally:
+The production files are written to `dist/`. To preview the build locally:
 
 ```bash
 npm run preview
@@ -34,48 +34,28 @@ npm run preview
 
 ## Current functionality
 
-- Responsive start screen and football-themed Activity 1
-- Animated dog football player who kicks with the ball
-- Three randomly selected letter goals per round
-- Spoken English instructions using the browser's speech synthesis API
-- Correct/incorrect feedback, animation, score, and progress display
-- Completion screen after ten correct answers
-- Text fallback when speech synthesis is unavailable
-- Activity 2 with falling letters, spoken targets, scoring, lives, and increasing speed
-- Activity 3 with eight scaffolded news-listening questions and replayable excerpts
-- Final listening score and a printable-style completion coupon
+- Automatic obstacle movement
+- Large touch-friendly jump button
+- Space and Up Arrow keyboard controls
+- Jump animation and collision detection
+- Clear success and retry feedback
+- Ten successful jumps to finish
+- One random inspirational message on completion
+- Responsive layout for phones and desktop browsers
 
 ## Project structure
 
 ```text
 src/
-  main.js                         App entry point and start screen
+  main.js                         App entry point
   style.css                       Global styles
-  styles/                         Shared button and design styles
-  activities/activity1/
-    activity1.js                  Alphabet Goal game logic
-    activity1.css                 Alphabet Goal presentation and animation
-  activities/activity2/
-    activity2.js                  Alphabet Ninja game logic
-    activity2.css                 Falling letters and game presentation
-  activities/activity3/
-    activity3.js                  News listening assessment logic and questions
-    activity3.css                 News mission and coupon presentation
+  styles/                         Shared button styles
+  activities/activity4/
+    activity4.js                  Luksong Baka game logic and messages
+    activity4.css                 Game presentation and animation
 ```
 
 ## Deployment note
 
-Vite's base path is configured as `/englishcoupon/` in `vite.config.js`. This is
-appropriate when the deployed site is served from that subdirectory. Change the
-base setting if the hosting location uses a different path.
-
-## Browser notes
-
-Speech voice and pronunciation vary by device and browser. Audio may require a
-user interaction before playback, which is why the game begins after pressing
-**Start Game**. If speech synthesis is not supported, the target letter is shown
-as text so the activity remains usable.
-
-## Planned work
-
-Future work can add saved progress, teacher reports, and more question sets.
+Vite's base path is configured in `vite.config.js`. Update it if the deployed
+site uses a different subdirectory.

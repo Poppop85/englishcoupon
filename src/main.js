@@ -1,84 +1,32 @@
 import "./style.css";
 import "./styles/buttons.css";
 
-import { renderAlphabetGoalGame } from "./activities/activity1/activity1.js";
-import { renderAlphabetNinjaGame } from "./activities/activity2/activity2.js";
-import { renderListeningTreasureHunt } from "./activities/activity3/activity3.js";
+import { renderLuksongBakaGame } from "./activities/activity4/activity4.js";
+import { renderReadingAssessment } from "./activities/reading-assessment/reading-assessment.js";
 
 const app = document.querySelector("#app");
 
-function showStartScreen() {
-  app.innerHTML = `
-    <main class="start-screen">
-      <section class="start-card">
-        <div class="start-icon" aria-hidden="true">⚽</div>
-
-        <p class="start-label">Activity 1</p>
-
-        <h1>Alphabet Goal Challenge</h1>
-
-        <p class="start-description">
-          Listen to the letter and kick the football into the correct goal!
-        </p>
-
-        <div class="start-actions">
-          <button
-            class="app-button app-button-primary"
-            id="startActivityButton"
-            type="button"
-          >
-            Start Activity 1
-          </button>
-
-          <button
-            class="app-button app-button-secondary"
-            id="startNinjaButton"
-            type="button"
-          >
-            Play Activity 2
-          </button>
-
-          <button
-            class="app-button app-button-secondary"
-            id="startListeningButton"
-            type="button"
-          >
-            Play Activity 3
-          </button>
-        </div>
-      </section>
-    </main>
-  `;
-
-  document
-    .querySelector("#startActivityButton")
-    .addEventListener("click", () => {
-      renderAlphabetGoalGame(
-        app,
-        showStartScreen,
-        () => renderAlphabetNinjaGame(
-          app,
-          showStartScreen,
-          () => renderListeningTreasureHunt(app, showStartScreen),
-        ),
-      );
-    });
-
-  document
-    .querySelector("#startNinjaButton")
-    .addEventListener("click", () => {
-      renderAlphabetNinjaGame(
-        app,
-        showStartScreen,
-        () => renderListeningTreasureHunt(app, showStartScreen),
-      );
-    });
-
-  document
-    .querySelector("#startListeningButton")
-    .addEventListener("click", () => {
-      renderListeningTreasureHunt(app, showStartScreen);
-    });
+function launchGame() {
+  renderLuksongBakaGame(app, launchGame);
 }
 
-showStartScreen();
+function renderCurrentPage() {
+  if (window.location.hash === "#reading-assessment") {
+    renderReadingAssessment(app, () => {
+      window.location.hash = "";
+    });
+    return;
+  }
+
+  launchGame();
+
+  const assessmentButton = document.createElement("a");
+  assessmentButton.className = "reading-assessment-shortcut";
+  assessmentButton.href = "#reading-assessment";
+  assessmentButton.textContent = "📖 Reading Assessment";
+  assessmentButton.setAttribute("aria-label", "Open the My Morning reading assessment");
+  app.appendChild(assessmentButton);
+}
+
+window.addEventListener("hashchange", renderCurrentPage);
+renderCurrentPage();

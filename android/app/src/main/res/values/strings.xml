@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Luksong Baka</string>
+    <string name="title_activity_main">Luksong Baka</string>
+    <string name="package_name">com.caspersengames.luksongbaka</string>
+    <string name="custom_url_scheme">com.caspersengames.luksongbaka</string>
+</resources>

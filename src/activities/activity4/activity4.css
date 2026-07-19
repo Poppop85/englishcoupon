@@ -1,0 +1,51 @@
+.baka-game {
+  width: 100%; height: 100vh; height: 100dvh; overflow: hidden;
+  display: grid; grid-template-rows: auto auto minmax(230px, 1fr) auto;
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  color: #17345b; background: linear-gradient(180deg, #82d9ff, #def7ff 58%, #75c95f 58.5%, #3c963f);
+}
+.baka-header { z-index: 10; width: min(100%, 1000px); min-height: 56px; margin: 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+.baka-title { min-width: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1rem, 4vw, 1.5rem); }
+.baka-audio-button { width: 44px; min-height: 44px; padding: 0; border: 3px solid white; border-radius: 50%; background: rgba(255,255,255,.94); box-shadow: 0 4px 0 rgba(26,93,137,.25); font-size: 1.25rem; cursor: pointer; }
+.baka-audio-button:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(26,93,137,.25); }
+.baka-score { min-width: 76px; padding: 10px 13px; border: 3px solid white; border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 6px 0 rgba(26,93,137,.25); text-align: center; font-weight: 900; }
+.baka-instruction { z-index: 10; width: min(94%, 620px); margin: 4px auto 9px; padding: 9px 15px; border: 3px solid white; border-radius: 24px; background: rgba(255,255,255,.95); box-shadow: 0 7px 0 rgba(25,104,151,.2); text-align: center; }
+.baka-instruction > p:first-child { margin: 0; color: #58728a; font-size: .84rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.baka-instruction h1 { margin: 3px 0; font-size: clamp(1.3rem, 5vw, 2rem); }
+.baka-feedback { min-height: 22px; margin: 3px 0 0; font-weight: 900; }
+.baka-feedback-ready { color: #1769a0; } .baka-feedback-success { color: #17843e; } .baka-feedback-fail { color: #c44d2b; }
+.baka-field { position: relative; width: min(100%, 950px); min-height: 0; margin: 0 auto; overflow: hidden; border: 4px solid rgba(255,255,255,.92); border-radius: clamp(22px, 4vw, 38px); background: linear-gradient(180deg, #78d5f8 0 65%, #69bc51 65%); box-shadow: inset 0 0 30px rgba(24,87,124,.12), 0 12px 28px rgba(16,61,55,.22); }
+.baka-cloud { position: absolute; top: 8%; opacity: .75; font-size: clamp(35px, 8vw, 70px); } .baka-cloud-one { left: 9%; } .baka-cloud-two { top: 24%; right: 11%; transform: scale(.75); }
+.baka-hills { position: absolute; right: -8%; bottom: 27%; width: 75%; height: 45%; border-radius: 50% 50% 0 0; background: #53aa4e; opacity: .72; }
+.baka-ground { position: absolute; inset: 65% 0 0; background: repeating-linear-gradient(95deg, transparent 0 35px, rgba(31,111,45,.22) 36px 40px), linear-gradient(#6fc553, #3b923d); }
+.baka-runner { position: absolute; z-index: 5; left: 18%; bottom: 17%; width: clamp(64px, 15vw, 105px); transform-origin: 50% 100%; }
+.runner-emoji { position: relative; z-index: 2; display: block; font-size: clamp(58px, 14vw, 98px); line-height: 1; transform: scaleX(-1); animation: runner-bob .32s ease-in-out infinite alternate; }
+.runner-shadow { position: absolute; z-index: 1; left: 9%; right: 9%; bottom: -5px; height: 13px; border-radius: 50%; background: rgba(21,70,34,.28); }
+.baka-runner-jumping { animation: baka-jump .85s cubic-bezier(.3,.02,.55,1); }
+.baka-runner-hit { animation: baka-hit .35s ease both; }
+.baka-obstacle { position: absolute; z-index: 4; right: -130px; bottom: 17%; font-size: clamp(58px, 14vw, 98px); line-height: 1; filter: drop-shadow(0 7px 2px rgba(31,80,37,.25)); }
+.baka-obstacle-running { animation: cow-run var(--run-time, 3.35s) linear forwards; }
+.baka-obstacle-hit { animation-play-state: paused; }
+.baka-reward-layer { position: absolute; z-index: 15; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.baka-milk-reward { padding: 13px 20px; display: flex; align-items: center; gap: 10px; border: 3px solid white; border-radius: 999px; color: #28527a; background: rgba(255,255,255,.96); box-shadow: 0 8px 25px rgba(26,72,94,.28); font-size: clamp(1rem, 4vw, 1.35rem); animation: milk-pop .65s ease both; }
+.baka-milk-reward span { font-size: clamp(2rem, 8vw, 3.5rem); }
+.baka-controls { width: min(100%, 700px); margin: 0 auto; padding: 10px 5px 2px; display: grid; grid-template-columns: minmax(90px, 1fr) minmax(180px, 280px) minmax(90px, 1fr); align-items: center; gap: 14px; }
+.baka-progress { grid-column: 1; height: 15px; overflow: hidden; border: 3px solid white; border-radius: 999px; background: rgba(255,255,255,.5); } .baka-progress > div { width: 0; height: 100%; border-radius: inherit; background: #ffcc33; transition: width .3s ease; }
+.baka-jump-button { grid-column: 2; min-height: 68px; padding: 12px 30px; border: 4px solid white; border-radius: 999px; color: white; background: linear-gradient(#ff9a40, #f05a31); box-shadow: 0 8px 0 #b43e25, 0 12px 20px rgba(68,44,28,.25); font-size: clamp(1.45rem, 6vw, 2rem); font-weight: 1000; cursor: pointer; touch-action: manipulation; }
+.baka-jump-button:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 3px 0 #b43e25; } .baka-jump-button:disabled { opacity: .7; cursor: default; }
+.baka-milk-count { grid-column: 3; justify-self: center; padding: 9px 12px; border: 3px solid white; border-radius: 999px; color: #28527a; background: rgba(255,255,255,.9); font-weight: 900; white-space: nowrap; }
+.baka-results { width: 100%; min-height: 100vh; min-height: 100dvh; padding: 18px; display: grid; place-items: center; background: radial-gradient(circle, rgba(255,235,98,.55), transparent 45%), linear-gradient(180deg, #8adeff, #e4f9ff 55%, #65ba62 56%); }
+.baka-results-card { width: min(94vw, 620px); max-height: 94dvh; padding: clamp(24px, 6vw, 45px); overflow-y: auto; border: 4px solid white; border-radius: 34px; background: rgba(255,255,255,.97); box-shadow: 0 11px 0 rgba(39,104,157,.23), 0 20px 45px rgba(21,58,85,.27); text-align: center; }
+.baka-trophy { font-size: clamp(70px, 18vw, 120px); animation: trophy-bounce 1s ease-in-out infinite; } .baka-result-label { margin: 3px 0; color: #607a91; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; } .baka-results-card h1 { margin: 5px 0 8px; font-size: clamp(2rem, 8vw, 3.5rem); } .baka-final-score { margin: 16px 0 24px; color: #ef6230; font-size: clamp(2.4rem, 10vw, 4rem); font-weight: 1000; }
+.baka-reflection-card { margin: 0 auto 24px; padding: 18px; border: 2px solid #d7b779; border-radius: 24px; color: #543b21; background: linear-gradient(145deg, #fffdf0, #f7e7bd); box-shadow: inset 0 0 0 4px rgba(255,255,255,.48); }
+.baka-reflection-card > p { margin: 0; color: #89632d; font-size: .78rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.baka-reflection-card blockquote { margin: 8px auto 12px; max-width: 470px; font-family: Georgia, serif; font-size: clamp(1.05rem, 3.5vw, 1.3rem); font-style: italic; line-height: 1.45; }
+@keyframes cow-run { from { transform: translateX(0); } to { transform: translateX(calc(-100vw - 220px)); } }
+@keyframes baka-jump { 0%, 100% { transform: translateY(0) rotate(0); } 45% { transform: translateY(clamp(-155px, -24vh, -95px)) rotate(-5deg); } }
+@keyframes runner-bob { to { transform: scaleX(-1) translateY(-3px) rotate(-2deg); } }
+@keyframes baka-hit { 60%, 100% { transform: translate(-10px, 4px) rotate(-12deg); } }
+@keyframes trophy-bounce { 50% { transform: translateY(-10px) rotate(4deg); } }
+@keyframes milk-pop { 0% { opacity: 0; transform: scale(.55) translateY(20px); } 35% { opacity: 1; transform: scale(1.08) translateY(0); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.95) translateY(-18px); } }
+@media (max-width: 520px) { .baka-game { grid-template-rows: auto auto minmax(210px, 1fr) auto; } .baka-header { gap: 5px; } .baka-title span { display: none; } .baka-audio-button { width: 40px; min-height: 40px; } .baka-instruction { padding: 7px 10px; } .baka-controls { grid-template-columns: 1fr 1fr; gap: 7px; } .baka-progress { grid-column: 1; width: 100%; } .baka-milk-count { grid-column: 2; grid-row: 1; } .baka-jump-button { grid-column: 1 / -1; width: min(78vw, 280px); margin: 0 auto; min-height: 64px; } }
+@media (max-height: 620px) { .baka-instruction h1 { margin: 0; font-size: 1.2rem; } .baka-instruction { padding: 5px 10px; } .baka-controls { padding-top: 5px; } .baka-jump-button { min-height: 55px; } }
+@media (prefers-reduced-motion: reduce) { .runner-emoji, .baka-trophy { animation: none; } }
