@@ -60,6 +60,7 @@ Deno.serve(async (request) => {
 
     const best = data.NBest[0];
     const assessment = best.PronunciationAssessment || {};
+    const transcript = best.Display || data.DisplayText || "";
     const practiceWords = (best.Words || [])
       .map((word: Record<string, unknown>) => ({
         word: word.Word,
@@ -75,7 +76,9 @@ Deno.serve(async (request) => {
       fluency: assessment.FluencyScore ?? 0,
       completeness: assessment.CompletenessScore ?? 0,
       prosody: assessment.ProsodyScore ?? null,
-      transcript: best.Display || data.DisplayText || "",
+      transcript,
+      confidence: best.Confidence ?? null,
+      detectedSpeech: transcript.trim().length > 0,
       practiceWords,
     }, { headers });
   } catch (error) {

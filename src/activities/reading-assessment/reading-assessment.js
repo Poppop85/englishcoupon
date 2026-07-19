@@ -119,6 +119,7 @@ export function renderReadingAssessment(container, onExit) {
   let audioChunks = [];
   let recordedAudio = null;
   let recording = false;
+  let peakSignal = 0;
 
   container.innerHTML = `
     <main class="reading-page"><section class="reading-card">
@@ -171,10 +172,10 @@ export function renderReadingAssessment(container, onExit) {
     await audioContext.close();
     startButton.disabled = false;
     stopButton.disabled = true;
-    submitButton.disabled = recordedAudio.size < 1000;
+    submitButton.disabled = recordedAudio.size < 1000 || peakSignal < 0.003;
     status.className = "recording-status";
     status.textContent = submitButton.disabled
-      ? "No usable audio was recorded. Please try again."
+      ? "The microphone signal was silent or too quiet. Check your microphone and try again."
       : "Recording stopped. Press Submit to receive your Azure scores.";
   }
 
@@ -187,13 +188,21 @@ export function renderReadingAssessment(container, onExit) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
       audioContext = new AudioContext();
+      await audioContext.resume();
       source = audioContext.createMediaStreamSource(stream);
       processor = audioContext.createScriptProcessor(4096, 1, 1);
       silentGain = audioContext.createGain();
       silentGain.gain.value = 0;
       audioChunks = [];
       recordedAudio = null;
-      processor.onaudioprocess = (event) => audioChunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+      peakSignal = 0;
+      processor.onaudioprocess = (event) => {
+        const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
+        for (let index = 0; index < chunk.length; index += 1) {
+          peakSignal = Math.max(peakSignal, Math.abs(chunk[index]));
+        }
+        audioChunks.push(chunk);
+      };
       source.connect(processor);
       processor.connect(silentGain);
       silentGain.connect(audioContext.destination);
@@ -221,6 +230,9 @@ export function renderReadingAssessment(container, onExit) {
     wordFeedback.hidden = true;
     try {
       const assessment = await requestAzureAssessment(recordedAudio);
+      if (!assessment.transcript?.trim() || assessment.detectedSpeech === false) {
+        throw new Error("Azure could not hear speech in this recording. Check the selected microphone, speak closer to it, and try again.");
+      }
       scores.innerHTML = [
         scoreCard("Pronunciation", assessment.pronunciation),
         scoreCard("Accuracy", assessment.accuracy),
