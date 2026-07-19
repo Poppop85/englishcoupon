@@ -211,7 +211,10 @@ export function renderReadingAssessment(container, onExit) {
       peakSignal = 0;
       finalTranscript = "";
       interimTranscript = "";
-      transcriptCard.hidden = true;
+      transcriptCard.hidden = false;
+      transcriptText.textContent = Recognition
+        ? "Listening for your words…"
+        : "Live words are unavailable in this browser. Audio recording for Azure is still active.";
       mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.addEventListener("dataavailable", (event) => {
         if (event.data.size) audioChunks.push(event.data);
@@ -232,8 +235,29 @@ export function renderReadingAssessment(container, onExit) {
           }
           updateTranscript();
         };
-        recognition.onerror = () => {};
-        recognition.start();
+        recognition.onerror = (event) => {
+          transcriptCard.hidden = false;
+          const explanations = {
+            "audio-capture": "Chrome could not access audio for live words.",
+            network: "Chrome's live speech service could not connect to the internet.",
+            "not-allowed": "Live speech recognition permission was blocked.",
+            "no-speech": "No speech was detected yet. Keep speaking clearly.",
+            aborted: "Live speech recognition stopped. The Azure audio recording continues.",
+          };
+          transcriptText.textContent = explanations[event.error]
+            || `Live words are unavailable (${event.error}). The Azure audio recording continues.`;
+        };
+        recognition.onend = () => {
+          if (recording && !finalTranscript.trim()) {
+            transcriptText.textContent = "Live words stopped, but your Azure audio recording is still active.";
+          }
+        };
+        try {
+          recognition.start();
+        } catch (error) {
+          console.error("Live speech recognition could not start", error);
+          transcriptText.textContent = "Live words could not start, but your Azure audio recording is still active.";
+        }
       }
       recording = true;
       result.hidden = true;
