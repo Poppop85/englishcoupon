@@ -65,9 +65,12 @@ Deno.serve(async (request) => {
     }
 
     const best = data.NBest[0];
-    const assessment = best.PronunciationAssessment;
+    // Azure's REST API returns pronunciation scores directly on NBest/Words,
+    // while some SDK-shaped responses nest them under PronunciationAssessment.
+    // Support both response formats.
+    const assessment = best.PronunciationAssessment || best;
     const transcript = best.Display || data.DisplayText || "";
-    if (!assessment || assessment.PronScore == null) {
+    if (assessment.PronScore == null) {
       console.error("Azure transcribed audio without pronunciation metrics", JSON.stringify({
         region,
         recognitionStatus: data.RecognitionStatus,
@@ -80,11 +83,14 @@ Deno.serve(async (request) => {
       }, { status: 502, headers });
     }
     const practiceWords = (best.Words || [])
-      .map((word: Record<string, unknown>) => ({
-        word: word.Word,
-        accuracy: Number((word.PronunciationAssessment as Record<string, unknown>)?.AccuracyScore ?? 0),
-        errorType: (word.PronunciationAssessment as Record<string, unknown>)?.ErrorType || "None",
-      }))
+      .map((word: Record<string, unknown>) => {
+        const wordAssessment = (word.PronunciationAssessment as Record<string, unknown>) || word;
+        return {
+          word: word.Word,
+          accuracy: Number(wordAssessment.AccuracyScore ?? 0),
+          errorType: wordAssessment.ErrorType || "None",
+        };
+      })
       .filter((word: { accuracy: number; errorType: unknown }) => word.accuracy < 75 || word.errorType !== "None")
       .slice(0, 12);
 
