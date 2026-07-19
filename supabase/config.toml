@@ -1,0 +1,4 @@
+project_id = "ainfigfcsyayxqguiecy"
+
+[functions.pronunciation-assessment]
+verify_jwt = false

@@ -58,6 +58,15 @@
 .accuracy-ring strong { color: #493094; font-size: 2.5rem; }
 .accuracy-ring span { font-size: .78rem; font-weight: 700; }
 .save-status { color: #526079; font-size: .9rem; }
+.azure-scores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 8px 0 20px; }
+.azure-score { min-height: 108px; padding: 14px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #ded5fa; border-radius: 18px; background: #f8f5ff; }
+.azure-score strong { color: #493094; font-size: clamp(1.55rem, 5vw, 2.2rem); }
+.azure-score span { margin-top: 5px; color: #526079; font-size: .78rem; font-weight: 800; }
+.word-feedback { margin-top: 20px; padding-top: 18px; border-top: 1px solid #ded8ef; }
+.word-feedback h2 { margin: 0 0 12px; color: #6048a5; font-size: 1rem; }
+.word-feedback div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.word-feedback span { padding: 8px 11px; border-radius: 999px; color: #7d2c40; background: #ffe7ed; font-weight: 800; }
+.word-feedback small { color: #9d5264; }
 
 @keyframes reading-pulse { 50% { opacity: .72; } }
 @media (max-width: 580px) {
@@ -66,6 +75,8 @@
   .reading-actions { grid-template-columns: 1fr; }
   .record-button { width: 100%; }
   .reading-assessment-shortcut { left: 16px; right: 16px; text-align: center; }
+  .azure-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .azure-score:last-child { grid-column: 1 / -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

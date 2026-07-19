@@ -11,244 +11,257 @@ const SENTENCES = [
 ];
 
 const TARGET_TEXT = SENTENCES.join(" ");
-
-// Supabase publishable values are intentionally safe to use in a browser app.
-// Environment variables can override these defaults for another deployment.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
   || "https://ainfigfcsyayxqguiecy.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
   || "sb_publishable_ZGvyEHuIM-5ZIuOUL4174A_VgSni472";
+const AZURE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/pronunciation-assessment`;
 
-function words(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9'\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
+function mergeAudio(chunks) {
+  const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const result = new Float32Array(length);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return result;
 }
 
-// Sequence matching gives partial credit while preventing repeated words from
-// artificially increasing the result.
-export function calculateReadingAccuracy(target, spoken) {
-  const expected = words(target);
-  const heard = words(spoken);
-  const previous = new Array(heard.length + 1).fill(0);
+function resample(input, inputRate, outputRate = 16000) {
+  if (inputRate === outputRate) return input;
+  const ratio = inputRate / outputRate;
+  const output = new Float32Array(Math.round(input.length / ratio));
 
-  for (let row = 1; row <= expected.length; row += 1) {
-    let diagonal = previous[0];
-
-    for (let column = 1; column <= heard.length; column += 1) {
-      const oldValue = previous[column];
-
-      if (expected[row - 1] === heard[column - 1]) {
-        previous[column] = diagonal + 1;
-      } else {
-        previous[column] = Math.max(previous[column], previous[column - 1]);
-      }
-
-      diagonal = oldValue;
-    }
+  for (let index = 0; index < output.length; index += 1) {
+    const start = Math.round(index * ratio);
+    const end = Math.min(Math.round((index + 1) * ratio), input.length);
+    let sum = 0;
+    for (let source = start; source < end; source += 1) sum += input[source];
+    output[index] = sum / Math.max(1, end - start);
   }
+  return output;
+}
 
-  return expected.length === 0
-    ? 0
-    : Math.round((previous[heard.length] / expected.length) * 100);
+function createWavBlob(chunks, inputRate) {
+  const samples = resample(mergeAudio(chunks), inputRate);
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const write = (offset, value) => {
+    [...value].forEach((character, index) => view.setUint8(offset + index, character.charCodeAt(0)));
+  };
+
+  write(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  write(8, "WAVE");
+  write(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true);
+  view.setUint32(28, 32000, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  samples.forEach((sample, index) => {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + index * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  });
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+async function requestAzureAssessment(audio) {
+  const form = new FormData();
+  form.append("audio", audio, "reading.wav");
+  form.append("referenceText", TARGET_TEXT);
+
+  const response = await fetch(AZURE_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+    },
+    body: form,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Azure assessment was unavailable.");
+  return data;
 }
 
 async function saveAssessment(result) {
-  const url = SUPABASE_URL;
-  const key = SUPABASE_PUBLISHABLE_KEY;
   const table = import.meta.env.VITE_SUPABASE_READING_TABLE || "reading_assessments";
-
-  if (!url || !key) {
-    return { saved: false, reason: "not-configured" };
-  }
-
-  const response = await fetch(`${url}/rest/v1/${encodeURIComponent(table)}`, {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}`, {
     method: "POST",
     headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
       "Content-Type": "application/json",
       Prefer: "return=minimal",
     },
     body: JSON.stringify(result),
   });
+  if (!response.ok) throw new Error(await response.text());
+}
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Supabase returned ${response.status}.`);
-  }
-
-  return { saved: true };
+function scoreCard(label, value) {
+  const safeValue = Number.isFinite(Number(value)) ? Math.round(Number(value)) : "—";
+  return `<div class="azure-score"><strong>${safeValue}${safeValue === "—" ? "" : "%"}</strong><span>${label}</span></div>`;
 }
 
 export function renderReadingAssessment(container, onExit) {
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  let finalTranscript = "";
-  let interimTranscript = "";
-  let isRecording = false;
+  let stream = null;
+  let audioContext = null;
+  let source = null;
+  let processor = null;
+  let silentGain = null;
+  let audioChunks = [];
+  let recordedAudio = null;
+  let recording = false;
 
   container.innerHTML = `
-    <main class="reading-page">
-      <section class="reading-card">
-        <header class="reading-header">
-          <button class="reading-back" id="readingBack" type="button" aria-label="Return to the activities">← Back</button>
-          <div class="reading-icon" aria-hidden="true">📖</div>
-          <p class="reading-eyebrow">Phonics Kids</p>
-          <h1>Reading Assessment</h1>
-          <p>Read the passage aloud. Speak clearly and at your natural pace.</p>
-        </header>
-
-        <section class="passage" aria-labelledby="passageTitle">
-          <h2 id="passageTitle">My Morning</h2>
-          <ol>${SENTENCES.map((sentence) => `<li>${sentence}</li>`).join("")}</ol>
-        </section>
-
-        <div class="recording-status" id="recordingStatus" role="status" aria-live="polite">
-          Press Start Recording when you are ready.
-        </div>
-
-        <div class="reading-actions">
-          <button class="record-button record-start" id="startRecording" type="button">🎤 Start Recording</button>
-          <button class="record-button record-stop" id="stopRecording" type="button" disabled>■ Stop Recording</button>
-          <button class="record-button record-submit" id="submitReading" type="button" disabled>📤 Submit</button>
-        </div>
-
-        <section class="transcript-card" id="transcriptCard" hidden>
-          <h2>What we heard</h2>
-          <p id="transcriptText"></p>
-        </section>
-
-        <section class="reading-result" id="readingResult" aria-live="polite" hidden>
-          <p class="result-kicker">Your result</p>
-          <div class="accuracy-ring"><strong id="accuracyScore">0%</strong><span>Reading accuracy</span></div>
-          <p id="resultMessage"></p>
-          <p class="save-status" id="saveStatus"></p>
-        </section>
+    <main class="reading-page"><section class="reading-card">
+      <header class="reading-header">
+        <button class="reading-back" id="readingBack" type="button">← Back</button>
+        <div class="reading-icon" aria-hidden="true">📖</div>
+        <p class="reading-eyebrow">Phonics Kids</p>
+        <h1>Reading Assessment</h1>
+        <p>Read the passage aloud. Speak clearly and at your natural pace.</p>
+      </header>
+      <section class="passage" aria-labelledby="passageTitle">
+        <h2 id="passageTitle">My Morning</h2>
+        <ol>${SENTENCES.map((sentence) => `<li>${sentence}</li>`).join("")}</ol>
       </section>
-    </main>
-  `;
+      <div class="recording-status" id="recordingStatus" role="status" aria-live="polite">Press Start Recording when you are ready.</div>
+      <div class="reading-actions">
+        <button class="record-button record-start" id="startRecording" type="button">🎤 Start Recording</button>
+        <button class="record-button record-stop" id="stopRecording" type="button" disabled>■ Stop Recording</button>
+        <button class="record-button record-submit" id="submitReading" type="button" disabled>📤 Submit to Azure</button>
+      </div>
+      <section class="reading-result" id="readingResult" aria-live="polite" hidden>
+        <p class="result-kicker">Azure pronunciation assessment</p>
+        <div class="azure-scores" id="azureScores"></div>
+        <p id="resultMessage"></p>
+        <section class="word-feedback" id="wordFeedback" hidden><h2>Words to practise</h2><div id="practiceWords"></div></section>
+        <p class="save-status" id="saveStatus"></p>
+      </section>
+    </section></main>`;
 
   const startButton = container.querySelector("#startRecording");
   const stopButton = container.querySelector("#stopRecording");
   const submitButton = container.querySelector("#submitReading");
   const status = container.querySelector("#recordingStatus");
-  const transcriptCard = container.querySelector("#transcriptCard");
-  const transcriptText = container.querySelector("#transcriptText");
   const result = container.querySelector("#readingResult");
-  const score = container.querySelector("#accuracyScore");
+  const scores = container.querySelector("#azureScores");
   const resultMessage = container.querySelector("#resultMessage");
   const saveStatus = container.querySelector("#saveStatus");
+  const wordFeedback = container.querySelector("#wordFeedback");
+  const practiceWords = container.querySelector("#practiceWords");
 
-  function updateTranscript() {
-    const transcript = `${finalTranscript} ${interimTranscript}`.trim();
-    transcriptText.textContent = transcript || "Listening…";
-    transcriptCard.hidden = false;
-  }
-
-  function stopRecording() {
-    if (recognition && isRecording) recognition.stop();
-  }
-
-  function setStoppedState() {
-    isRecording = false;
+  async function stopRecording() {
+    if (!recording) return;
+    recording = false;
+    if (processor) processor.onaudioprocess = null;
+    processor?.disconnect();
+    source?.disconnect();
+    silentGain?.disconnect();
+    stream?.getTracks().forEach((track) => track.stop());
+    recordedAudio = createWavBlob(audioChunks, audioContext.sampleRate);
+    await audioContext.close();
     startButton.disabled = false;
     stopButton.disabled = true;
-    submitButton.disabled = !finalTranscript.trim();
-    status.classList.remove("is-recording");
-    status.textContent = finalTranscript.trim()
-      ? "Recording stopped. Check the text, then press Submit."
-      : "No speech was captured. Please try again.";
+    submitButton.disabled = recordedAudio.size < 1000;
+    status.className = "recording-status";
+    status.textContent = submitButton.disabled
+      ? "No usable audio was recorded. Please try again."
+      : "Recording stopped. Press Submit to receive your Azure scores.";
   }
 
-  startButton.addEventListener("click", () => {
-    if (!Recognition) {
-      status.textContent = "Speech recognition is not supported in this browser. Please use Chrome or Edge and allow microphone access.";
-      status.classList.add("has-error");
+  startButton.addEventListener("click", async () => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) {
+      status.className = "recording-status has-error";
+      status.textContent = "Audio recording is unavailable. Please use a current version of Chrome or Edge.";
       return;
     }
-
-    finalTranscript = "";
-    interimTranscript = "";
-    result.hidden = true;
-    transcriptCard.hidden = true;
-    recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event) => {
-      interimTranscript = "";
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const text = event.results[index][0].transcript;
-        if (event.results[index].isFinal) finalTranscript += ` ${text}`;
-        else interimTranscript += ` ${text}`;
-      }
-      updateTranscript();
-    };
-
-    recognition.onerror = (event) => {
-      status.classList.add("has-error");
-      status.textContent = event.error === "not-allowed"
-        ? "Microphone permission was blocked. Allow microphone access and try again."
-        : `Recording error: ${event.error}. Please try again.`;
-    };
-
-    recognition.onend = setStoppedState;
-
     try {
-      recognition.start();
-      isRecording = true;
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      audioContext = new AudioContext();
+      source = audioContext.createMediaStreamSource(stream);
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+      silentGain = audioContext.createGain();
+      silentGain.gain.value = 0;
+      audioChunks = [];
+      recordedAudio = null;
+      processor.onaudioprocess = (event) => audioChunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+      source.connect(processor);
+      processor.connect(silentGain);
+      silentGain.connect(audioContext.destination);
+      recording = true;
+      result.hidden = true;
       startButton.disabled = true;
       stopButton.disabled = false;
       submitButton.disabled = true;
       status.className = "recording-status is-recording";
       status.textContent = "● Recording… Read all seven sentences aloud.";
-    } catch {
-      setStoppedState();
+    } catch (error) {
+      console.error(error);
+      status.className = "recording-status has-error";
+      status.textContent = "Microphone permission was blocked. Allow access and try again.";
     }
   });
 
   stopButton.addEventListener("click", stopRecording);
-
   submitButton.addEventListener("click", async () => {
-    const recognizedText = finalTranscript.trim();
-    const accuracy = calculateReadingAccuracy(TARGET_TEXT, recognizedText);
-    const feedback = accuracy >= 90
-      ? "Excellent reading! You matched almost every word."
-      : accuracy >= 75
-        ? "Good reading! Try once more for an even higher score."
-        : "Nice start. Read slowly, speak clearly, and try again.";
-
-    score.textContent = `${accuracy}%`;
-    resultMessage.textContent = feedback;
-    result.hidden = false;
-    saveStatus.textContent = "Saving result…";
     submitButton.disabled = true;
-
+    result.hidden = false;
+    scores.innerHTML = "";
+    resultMessage.textContent = "Azure is analysing your reading…";
+    saveStatus.textContent = "";
+    wordFeedback.hidden = true;
     try {
-      const saved = await saveAssessment({
+      const assessment = await requestAzureAssessment(recordedAudio);
+      scores.innerHTML = [
+        scoreCard("Pronunciation", assessment.pronunciation),
+        scoreCard("Accuracy", assessment.accuracy),
+        scoreCard("Fluency", assessment.fluency),
+        scoreCard("Completeness", assessment.completeness),
+        scoreCard("Prosody", assessment.prosody),
+      ].join("");
+      resultMessage.textContent = assessment.pronunciation >= 90
+        ? "Excellent reading—clear, complete, and natural."
+        : assessment.pronunciation >= 75
+          ? "Good reading. Practise the highlighted words and try again."
+          : "Keep practising. Read slowly and focus on each highlighted word.";
+      if (assessment.practiceWords?.length) {
+        practiceWords.innerHTML = assessment.practiceWords.map((word) => `<span>${word.word} <small>${Math.round(word.accuracy)}%</small></span>`).join("");
+        wordFeedback.hidden = false;
+      }
+      saveStatus.textContent = "Saving result…";
+      await saveAssessment({
         activity: "my_morning",
-        accuracy,
-        transcript: recognizedText,
+        accuracy: Math.round(assessment.accuracy),
+        transcript: assessment.transcript || "",
         target_text: TARGET_TEXT,
+        pronunciation: Math.round(assessment.pronunciation),
+        fluency: Math.round(assessment.fluency),
+        completeness: Math.round(assessment.completeness),
+        prosody: assessment.prosody == null ? null : Math.round(assessment.prosody),
+        azure_result: assessment,
       });
-      saveStatus.textContent = saved.saved
-        ? "✓ Result saved."
-        : "Score is ready. Supabase saving will begin when the deployment variables are connected.";
+      saveStatus.textContent = "✓ Detailed result saved.";
     } catch (error) {
-      console.error("Could not save reading assessment", error);
-      saveStatus.textContent = "Your score is shown, but it could not be saved. Please try again.";
+      console.error(error);
+      scores.innerHTML = scoreCard("Assessment", null);
+      resultMessage.textContent = error.message || "Azure assessment was unavailable.";
+      saveStatus.textContent = "Your recording was not charged or saved. Please try again after the function is deployed.";
       submitButton.disabled = false;
     }
-
     result.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
-  container.querySelector("#readingBack").addEventListener("click", () => {
-    stopRecording();
+  container.querySelector("#readingBack").addEventListener("click", async () => {
+    await stopRecording();
     onExit();
   });
 }
