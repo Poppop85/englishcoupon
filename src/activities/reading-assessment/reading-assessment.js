@@ -111,15 +111,16 @@ function scoreCard(label, value) {
 }
 
 export function renderReadingAssessment(container, onExit) {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let stream = null;
-  let audioContext = null;
-  let source = null;
-  let processor = null;
-  let silentGain = null;
+  let mediaRecorder = null;
+  let recognition = null;
   let audioChunks = [];
   let recordedAudio = null;
   let recording = false;
   let peakSignal = 0;
+  let finalTranscript = "";
+  let interimTranscript = "";
 
   container.innerHTML = `
     <main class="reading-page"><section class="reading-card">
@@ -140,6 +141,10 @@ export function renderReadingAssessment(container, onExit) {
         <button class="record-button record-stop" id="stopRecording" type="button" disabled>■ Stop Recording</button>
         <button class="record-button record-submit" id="submitReading" type="button" disabled>📤 Submit to Azure</button>
       </div>
+      <section class="transcript-card" id="transcriptCard" hidden>
+        <h2>What we heard</h2>
+        <p id="transcriptText">Listening…</p>
+      </section>
       <section class="reading-result" id="readingResult" aria-live="polite" hidden>
         <p class="result-kicker">Azure pronunciation assessment</p>
         <div class="azure-scores" id="azureScores"></div>
@@ -159,17 +164,31 @@ export function renderReadingAssessment(container, onExit) {
   const saveStatus = container.querySelector("#saveStatus");
   const wordFeedback = container.querySelector("#wordFeedback");
   const practiceWords = container.querySelector("#practiceWords");
+  const transcriptCard = container.querySelector("#transcriptCard");
+  const transcriptText = container.querySelector("#transcriptText");
+
+  function updateTranscript() {
+    transcriptText.textContent = `${finalTranscript} ${interimTranscript}`.trim() || "Listening…";
+    transcriptCard.hidden = false;
+  }
 
   async function stopRecording() {
     if (!recording) return;
     recording = false;
-    if (processor) processor.onaudioprocess = null;
-    processor?.disconnect();
-    source?.disconnect();
-    silentGain?.disconnect();
+    recognition?.stop();
+    const stopped = new Promise((resolve) => {
+      mediaRecorder.addEventListener("stop", resolve, { once: true });
+    });
+    mediaRecorder.stop();
+    await stopped;
     stream?.getTracks().forEach((track) => track.stop());
-    recordedAudio = createWavBlob(audioChunks, audioContext.sampleRate);
-    await audioContext.close();
+    const browserAudio = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+    const decodeContext = new AudioContext();
+    const decoded = await decodeContext.decodeAudioData(await browserAudio.arrayBuffer());
+    const samples = new Float32Array(decoded.getChannelData(0));
+    peakSignal = samples.reduce((peak, sample) => Math.max(peak, Math.abs(sample)), 0);
+    recordedAudio = createWavBlob([samples], decoded.sampleRate);
+    await decodeContext.close();
     startButton.disabled = false;
     stopButton.disabled = true;
     submitButton.disabled = recordedAudio.size < 1000 || peakSignal < 0.003;
@@ -180,32 +199,42 @@ export function renderReadingAssessment(container, onExit) {
   }
 
   startButton.addEventListener("click", async () => {
-    if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioContext) {
       status.className = "recording-status has-error";
       status.textContent = "Audio recording is unavailable. Please use a current version of Chrome or Edge.";
       return;
     }
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
-      audioContext = new AudioContext();
-      await audioContext.resume();
-      source = audioContext.createMediaStreamSource(stream);
-      processor = audioContext.createScriptProcessor(4096, 1, 1);
-      silentGain = audioContext.createGain();
-      silentGain.gain.value = 0;
       audioChunks = [];
       recordedAudio = null;
       peakSignal = 0;
-      processor.onaudioprocess = (event) => {
-        const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
-        for (let index = 0; index < chunk.length; index += 1) {
-          peakSignal = Math.max(peakSignal, Math.abs(chunk[index]));
-        }
-        audioChunks.push(chunk);
-      };
-      source.connect(processor);
-      processor.connect(silentGain);
-      silentGain.connect(audioContext.destination);
+      finalTranscript = "";
+      interimTranscript = "";
+      transcriptCard.hidden = true;
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.addEventListener("dataavailable", (event) => {
+        if (event.data.size) audioChunks.push(event.data);
+      });
+      mediaRecorder.start(500);
+
+      if (Recognition) {
+        recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event) => {
+          interimTranscript = "";
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const text = event.results[index][0].transcript;
+            if (event.results[index].isFinal) finalTranscript += ` ${text}`;
+            else interimTranscript += ` ${text}`;
+          }
+          updateTranscript();
+        };
+        recognition.onerror = () => {};
+        recognition.start();
+      }
       recording = true;
       result.hidden = true;
       startButton.disabled = true;
