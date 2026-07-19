@@ -111,16 +111,15 @@ function scoreCard(label, value) {
 }
 
 export function renderReadingAssessment(container, onExit) {
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let stream = null;
   let mediaRecorder = null;
-  let recognition = null;
+  let meterContext = null;
+  let meterFrame = null;
   let audioChunks = [];
   let recordedAudio = null;
+  let recordingUrl = null;
   let recording = false;
   let peakSignal = 0;
-  let finalTranscript = "";
-  let interimTranscript = "";
 
   container.innerHTML = `
     <main class="reading-page"><section class="reading-card">
@@ -141,14 +140,17 @@ export function renderReadingAssessment(container, onExit) {
         <button class="record-button record-stop" id="stopRecording" type="button" disabled>■ Stop Recording</button>
         <button class="record-button record-submit" id="submitReading" type="button" disabled>📤 Submit to Azure</button>
       </div>
-      <section class="transcript-card" id="transcriptCard" hidden>
-        <h2>What we heard</h2>
-        <p id="transcriptText">Listening…</p>
+      <section class="transcript-card" id="recordingPreview" hidden>
+        <h2>Your microphone recording</h2>
+        <div class="mic-meter" aria-label="Microphone level"><div id="micMeterFill"></div></div>
+        <p id="recordingHelp">Speak and check that the purple level moves.</p>
+        <audio id="recordingPlayback" controls hidden></audio>
       </section>
       <section class="reading-result" id="readingResult" aria-live="polite" hidden>
         <p class="result-kicker">Azure pronunciation assessment</p>
         <div class="azure-scores" id="azureScores"></div>
         <p id="resultMessage"></p>
+        <p class="azure-transcript" id="azureTranscript" hidden></p>
         <section class="word-feedback" id="wordFeedback" hidden><h2>Words to practise</h2><div id="practiceWords"></div></section>
         <p class="save-status" id="saveStatus"></p>
       </section>
@@ -164,24 +166,23 @@ export function renderReadingAssessment(container, onExit) {
   const saveStatus = container.querySelector("#saveStatus");
   const wordFeedback = container.querySelector("#wordFeedback");
   const practiceWords = container.querySelector("#practiceWords");
-  const transcriptCard = container.querySelector("#transcriptCard");
-  const transcriptText = container.querySelector("#transcriptText");
-
-  function updateTranscript() {
-    transcriptText.textContent = `${finalTranscript} ${interimTranscript}`.trim() || "Listening…";
-    transcriptCard.hidden = false;
-  }
+  const recordingPreview = container.querySelector("#recordingPreview");
+  const recordingHelp = container.querySelector("#recordingHelp");
+  const playback = container.querySelector("#recordingPlayback");
+  const meterFill = container.querySelector("#micMeterFill");
+  const azureTranscript = container.querySelector("#azureTranscript");
 
   async function stopRecording() {
     if (!recording) return;
     recording = false;
-    recognition?.stop();
+    cancelAnimationFrame(meterFrame);
     const stopped = new Promise((resolve) => {
       mediaRecorder.addEventListener("stop", resolve, { once: true });
     });
     mediaRecorder.stop();
     await stopped;
     stream?.getTracks().forEach((track) => track.stop());
+    await meterContext?.close();
     const browserAudio = new Blob(audioChunks, { type: mediaRecorder.mimeType });
     const decodeContext = new AudioContext();
     const decoded = await decodeContext.decodeAudioData(await browserAudio.arrayBuffer());
@@ -189,6 +190,12 @@ export function renderReadingAssessment(container, onExit) {
     peakSignal = samples.reduce((peak, sample) => Math.max(peak, Math.abs(sample)), 0);
     recordedAudio = createWavBlob([samples], decoded.sampleRate);
     await decodeContext.close();
+    if (recordingUrl) URL.revokeObjectURL(recordingUrl);
+    recordingUrl = URL.createObjectURL(recordedAudio);
+    playback.src = recordingUrl;
+    playback.hidden = false;
+    meterFill.style.width = `${Math.min(100, Math.round(peakSignal * 250))}%`;
+    recordingHelp.textContent = "Play this recording before submitting. Azure will hear this exact audio.";
     startButton.disabled = false;
     stopButton.disabled = true;
     submitButton.disabled = recordedAudio.size < 1000 || peakSignal < 0.003;
@@ -209,56 +216,29 @@ export function renderReadingAssessment(container, onExit) {
       audioChunks = [];
       recordedAudio = null;
       peakSignal = 0;
-      finalTranscript = "";
-      interimTranscript = "";
-      transcriptCard.hidden = false;
-      transcriptText.textContent = Recognition
-        ? "Listening for your words…"
-        : "Live words are unavailable in this browser. Audio recording for Azure is still active.";
+      recordingPreview.hidden = false;
+      playback.hidden = true;
+      recordingHelp.textContent = "Speak and check that the purple level moves.";
+      meterFill.style.width = "0%";
       mediaRecorder = new MediaRecorder(stream);
       mediaRecorder.addEventListener("dataavailable", (event) => {
         if (event.data.size) audioChunks.push(event.data);
       });
       mediaRecorder.start(500);
-
-      if (Recognition) {
-        recognition = new Recognition();
-        recognition.lang = "en-US";
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.onresult = (event) => {
-          interimTranscript = "";
-          for (let index = event.resultIndex; index < event.results.length; index += 1) {
-            const text = event.results[index][0].transcript;
-            if (event.results[index].isFinal) finalTranscript += ` ${text}`;
-            else interimTranscript += ` ${text}`;
-          }
-          updateTranscript();
-        };
-        recognition.onerror = (event) => {
-          transcriptCard.hidden = false;
-          const explanations = {
-            "audio-capture": "Chrome could not access audio for live words.",
-            network: "Chrome's live speech service could not connect to the internet.",
-            "not-allowed": "Live speech recognition permission was blocked.",
-            "no-speech": "No speech was detected yet. Keep speaking clearly.",
-            aborted: "Live speech recognition stopped. The Azure audio recording continues.",
-          };
-          transcriptText.textContent = explanations[event.error]
-            || `Live words are unavailable (${event.error}). The Azure audio recording continues.`;
-        };
-        recognition.onend = () => {
-          if (recording && !finalTranscript.trim()) {
-            transcriptText.textContent = "Live words stopped, but your Azure audio recording is still active.";
-          }
-        };
-        try {
-          recognition.start();
-        } catch (error) {
-          console.error("Live speech recognition could not start", error);
-          transcriptText.textContent = "Live words could not start, but your Azure audio recording is still active.";
-        }
-      }
+      meterContext = new AudioContext();
+      await meterContext.resume();
+      const meterSource = meterContext.createMediaStreamSource(stream);
+      const analyser = meterContext.createAnalyser();
+      const levels = new Uint8Array(analyser.fftSize);
+      meterSource.connect(analyser);
+      const drawMeter = () => {
+        analyser.getByteTimeDomainData(levels);
+        let loudest = 0;
+        levels.forEach((level) => { loudest = Math.max(loudest, Math.abs(level - 128)); });
+        meterFill.style.width = `${Math.min(100, loudest * 2.5)}%`;
+        meterFrame = requestAnimationFrame(drawMeter);
+      };
+      drawMeter();
       recording = true;
       result.hidden = true;
       startButton.disabled = true;
@@ -281,6 +261,7 @@ export function renderReadingAssessment(container, onExit) {
     resultMessage.textContent = "Azure is analysing your reading…";
     saveStatus.textContent = "";
     wordFeedback.hidden = true;
+    azureTranscript.hidden = true;
     try {
       const assessment = await requestAzureAssessment(recordedAudio);
       if (!assessment.transcript?.trim() || assessment.detectedSpeech === false) {
@@ -293,6 +274,8 @@ export function renderReadingAssessment(container, onExit) {
         scoreCard("Completeness", assessment.completeness),
         scoreCard("Prosody", assessment.prosody),
       ].join("");
+      azureTranscript.textContent = `Azure heard: “${assessment.transcript}”`;
+      azureTranscript.hidden = false;
       resultMessage.textContent = assessment.pronunciation >= 90
         ? "Excellent reading—clear, complete, and natural."
         : assessment.pronunciation >= 75
@@ -327,6 +310,7 @@ export function renderReadingAssessment(container, onExit) {
 
   container.querySelector("#readingBack").addEventListener("click", async () => {
     await stopRecording();
+    if (recordingUrl) URL.revokeObjectURL(recordingUrl);
     onExit();
   });
 }
