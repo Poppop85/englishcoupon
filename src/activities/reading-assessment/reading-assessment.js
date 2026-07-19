@@ -295,6 +295,10 @@ export function renderReadingAssessment(container, onExit) {
         fluency: Math.round(assessment.fluency),
         completeness: Math.round(assessment.completeness),
         prosody: assessment.prosody == null ? null : Math.round(assessment.prosody),
+        pronunciation_score: Math.round(assessment.pronunciation),
+        accuracy_score: Math.round(assessment.accuracy),
+        fluency_score: Math.round(assessment.fluency),
+        completeness_score: Math.round(assessment.completeness),
         azure_result: assessment,
       });
       saveStatus.textContent = "✓ Detailed result saved.";

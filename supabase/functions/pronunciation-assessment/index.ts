@@ -33,14 +33,20 @@ Deno.serve(async (request) => {
       return Response.json({ error: "Audio and reference text are required." }, { status: 400, headers });
     }
 
-    const config = btoa(JSON.stringify({
+    // Keep the first production request to Azure's broadly supported core
+    // pronunciation settings. Prosody can be enabled after core scoring is
+    // confirmed for this resource and region.
+    const pronunciationConfig = JSON.stringify({
       ReferenceText: referenceText,
       GradingSystem: "HundredMark",
       Granularity: "Phoneme",
       Dimension: "Comprehensive",
       EnableMiscue: true,
-      EnableProsodyAssessment: true,
-    }));
+    });
+    const configBytes = new TextEncoder().encode(pronunciationConfig);
+    let configBinary = "";
+    configBytes.forEach((byte) => { configBinary += String.fromCharCode(byte); });
+    const config = btoa(configBinary);
     const endpoint = `https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=en-US&format=detailed`;
     const azure = await fetch(endpoint, {
       method: "POST",
@@ -59,8 +65,20 @@ Deno.serve(async (request) => {
     }
 
     const best = data.NBest[0];
-    const assessment = best.PronunciationAssessment || {};
+    const assessment = best.PronunciationAssessment;
     const transcript = best.Display || data.DisplayText || "";
+    if (!assessment || assessment.PronScore == null) {
+      console.error("Azure transcribed audio without pronunciation metrics", JSON.stringify({
+        region,
+        recognitionStatus: data.RecognitionStatus,
+        topLevelKeys: Object.keys(data),
+        nBestKeys: Object.keys(best),
+        wordKeys: Object.keys(best.Words?.[0] || {}),
+      }));
+      return Response.json({
+        error: "Azure transcribed the recording but did not return pronunciation metrics. Check the Edge Function log for the Azure response fields.",
+      }, { status: 502, headers });
+    }
     const practiceWords = (best.Words || [])
       .map((word: Record<string, unknown>) => ({
         word: word.Word,
@@ -71,10 +89,10 @@ Deno.serve(async (request) => {
       .slice(0, 12);
 
     return Response.json({
-      pronunciation: assessment.PronScore ?? 0,
-      accuracy: assessment.AccuracyScore ?? 0,
-      fluency: assessment.FluencyScore ?? 0,
-      completeness: assessment.CompletenessScore ?? 0,
+      pronunciation: assessment.PronScore,
+      accuracy: assessment.AccuracyScore,
+      fluency: assessment.FluencyScore,
+      completeness: assessment.CompletenessScore,
       prosody: assessment.ProsodyScore ?? null,
       transcript,
       confidence: best.Confidence ?? null,
